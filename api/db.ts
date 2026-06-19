@@ -84,12 +84,23 @@ CREATE TABLE IF NOT EXISTS transactions (
   technician_id INTEGER,
   service_id INTEGER,
   amount REAL NOT NULL,
+  bonus_amount REAL DEFAULT 0,
   points_earned INTEGER DEFAULT 0,
   type TEXT NOT NULL,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (member_id) REFERENCES members(id),
   FOREIGN KEY (technician_id) REFERENCES technicians(id),
   FOREIGN KEY (service_id) REFERENCES services(id)
+);
+
+CREATE TABLE IF NOT EXISTS birthday_records (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  member_id INTEGER,
+  year INTEGER,
+  handled_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  note TEXT,
+  UNIQUE(member_id, year),
+  FOREIGN KEY (member_id) REFERENCES members(id)
 );
 
 CREATE TABLE IF NOT EXISTS recharge_rules (
@@ -100,6 +111,12 @@ CREATE TABLE IF NOT EXISTS recharge_rules (
 `
 
 db.exec(createTablesSql)
+
+try {
+  db.prepare('ALTER TABLE transactions ADD COLUMN bonus_amount REAL DEFAULT 0').run()
+} catch (err) {
+  // 字段已存在，忽略
+}
 
 const rulesCount = db.prepare('SELECT COUNT(*) as cnt FROM recharge_rules').get() as { cnt: number }
 if (rulesCount.cnt === 0) {

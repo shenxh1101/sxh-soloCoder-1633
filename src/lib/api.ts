@@ -98,6 +98,13 @@ export async function getBirthdayMembers(): Promise<Member[]> {
   return request<Member[]>("/members/birthdays");
 }
 
+export async function handleBirthday(memberId: number, note?: string): Promise<void> {
+  return request<void>(`/members/${memberId}/birthday-handle`, {
+    method: "POST",
+    body: JSON.stringify({ note }),
+  });
+}
+
 export async function getTechnicians(): Promise<Technician[]> {
   return request<Technician[]>("/technicians");
 }

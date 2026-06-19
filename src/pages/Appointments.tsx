@@ -129,6 +129,7 @@ export default function Appointments() {
         date: formData.date,
         time: formData.time,
       });
+      await loadAppointments(selectedDate);
       setIsModalOpen(false);
     } catch {
       alert("创建预约失败");

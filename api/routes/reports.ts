@@ -13,8 +13,8 @@ router.get('/technicians', (req: Request, res: Response): void => {
     const prefix = `${month}-`
     const rows = db.prepare(
       `SELECT t.id, t.name,
-              COUNT(a.id) as appointment_count,
-              COALESCE(SUM(CASE WHEN tr.type = 'consume' THEN tr.amount ELSE 0 END), 0) as revenue
+              COUNT(DISTINCT a.id) as appointment_count,
+              COALESCE(SUM(tr.amount), 0) as revenue
        FROM technicians t
        LEFT JOIN appointments a ON t.id = a.technician_id AND a.date LIKE ? AND a.status = 'completed'
        LEFT JOIN transactions tr ON t.id = tr.technician_id AND tr.created_at LIKE ? AND tr.type = 'consume'
@@ -37,13 +37,14 @@ router.get('/services', (req: Request, res: Response): void => {
     const prefix = `${month}-`
     const rows = db.prepare(
       `SELECT s.id, s.name,
-              COUNT(a.id) as appointment_count,
-              COALESCE(SUM(CASE WHEN a.status = 'completed' THEN s.price ELSE 0 END), 0) as revenue
+              COUNT(DISTINCT a.id) as appointment_count,
+              COALESCE(SUM(tr.amount), 0) as revenue
        FROM services s
-       LEFT JOIN appointments a ON s.id = a.service_id AND a.date LIKE ?
+       LEFT JOIN appointments a ON s.id = a.service_id AND a.date LIKE ? AND a.status = 'completed'
+       LEFT JOIN transactions tr ON s.id = tr.service_id AND tr.created_at LIKE ? AND tr.type = 'consume'
        GROUP BY s.id, s.name
        ORDER BY revenue DESC`
-    ).all(`${prefix}%`) as Record<string, unknown>[]
+    ).all(`${prefix}%`, `${prefix}%`) as Record<string, unknown>[]
     res.json({ success: true, data: mapRows(rows) })
   } catch (err) {
     res.status(500).json({ success: false, error: (err as Error).message })
@@ -60,7 +61,8 @@ router.get('/recharge', (req: Request, res: Response): void => {
     const prefix = `${month}-`
     const row = db.prepare(
       `SELECT COUNT(*) as recharge_count,
-              COALESCE(SUM(amount), 0) as total_recharge
+              COALESCE(SUM(amount), 0) as total_recharge,
+              COALESCE(SUM(bonus_amount), 0) as total_bonus
        FROM transactions
        WHERE type = 'recharge' AND created_at LIKE ?`
     ).get(`${prefix}%`) as Record<string, unknown>

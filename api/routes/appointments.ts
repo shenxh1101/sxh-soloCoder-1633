@@ -45,7 +45,14 @@ router.post('/', (req: Request, res: Response): void => {
        VALUES (?, ?, ?, ?, ?)`
     ).run(memberId || null, technicianId, serviceId, date, time)
 
-    const row = db.prepare('SELECT * FROM appointments WHERE id = ?').get(info.lastInsertRowid) as Record<string, unknown>
+    const row = db.prepare(
+      `SELECT a.*, m.name as member_name, t.name as technician_name, s.name as service_name
+       FROM appointments a
+       LEFT JOIN members m ON a.member_id = m.id
+       LEFT JOIN technicians t ON a.technician_id = t.id
+       LEFT JOIN services s ON a.service_id = s.id
+       WHERE a.id = ?`
+    ).get(info.lastInsertRowid) as Record<string, unknown>
     res.status(201).json({ success: true, data: mapRow(row) })
   } catch (err) {
     res.status(500).json({ success: false, error: (err as Error).message })

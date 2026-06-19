@@ -4,8 +4,9 @@ import { useAppStore } from "@/store/useAppStore";
 import type { Technician } from "../../shared/types";
 
 export default function Technicians() {
-  const { technicians, loadTechnicians } = useAppStore();
+  const { technicians, loadTechnicians, addTechnician } = useAppStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -17,11 +18,23 @@ export default function Technicians() {
     loadTechnicians();
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("添加技师功能需后端API支持");
-    setIsModalOpen(false);
-    setFormData({ name: "", phone: "", specialties: "" });
+    if (!formData.name || !formData.phone) return;
+    try {
+      setSubmitting(true);
+      await addTechnician({
+        name: formData.name,
+        phone: formData.phone,
+        specialties: formData.specialties,
+      });
+      setIsModalOpen(false);
+      setFormData({ name: "", phone: "", specialties: "" });
+    } catch {
+      alert("添加技师失败");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -155,10 +168,10 @@ export default function Technicians() {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={!formData.name || !formData.phone}
+                disabled={!formData.name || !formData.phone || submitting}
                 className="px-4 py-2 bg-accent-700 text-white rounded-lg hover:bg-accent-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                添加
+                {submitting ? "添加中..." : "添加"}
               </button>
             </div>
           </div>

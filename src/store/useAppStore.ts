@@ -29,8 +29,10 @@ type AppState = {
   rechargeMemberStore: (memberId: number, data: RechargeMemberRequest) => Promise<void>;
   consumeMemberStore: (memberId: number, data: ConsumeMemberRequest) => Promise<void>;
   loadBirthdayMembers: () => Promise<Member[]>;
+  handleBirthday: (memberId: number, note?: string) => Promise<void>;
 
   loadTechnicians: () => Promise<void>;
+  addTechnician: (data: Partial<Technician>) => Promise<Technician>;
   loadAvailableTechnicians: (
     date: string,
     time: string,
@@ -125,6 +127,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
+  handleBirthday: async (memberId, note) => {
+    set({ loading: true, error: null });
+    try {
+      await api.handleBirthday(memberId, note);
+    } catch (error) {
+      set({ error: (error as Error).message });
+      throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
   loadTechnicians: async () => {
     set({ loading: true, error: null });
     try {
@@ -132,6 +146,20 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ technicians });
     } catch (error) {
       set({ error: (error as Error).message });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  addTechnician: async (data) => {
+    set({ loading: true, error: null });
+    try {
+      const technician = await api.createTechnician(data);
+      set((state) => ({ technicians: [...state.technicians, technician] }));
+      return technician;
+    } catch (error) {
+      set({ error: (error as Error).message });
+      throw error;
     } finally {
       set({ loading: false });
     }

@@ -15,6 +15,7 @@ router.get('/', (req: Request, res: Response): void => {
 router.get('/birthdays', (req: Request, res: Response): void => {
   try {
     const today = new Date()
+    const currentYear = today.getFullYear()
     const todayMd = today.toISOString().slice(5, 10)
     const sevenDays = new Date(today.getTime() + 7 * 86400000)
     const sevenMd = sevenDays.toISOString().slice(5, 10)
@@ -22,21 +23,61 @@ router.get('/birthdays', (req: Request, res: Response): void => {
     let rows: Record<string, unknown>[]
     if (todayMd <= sevenMd) {
       rows = db.prepare(
-        `SELECT * FROM members
-         WHERE birthday IS NOT NULL
-           AND strftime('%m-%d', birthday) BETWEEN ? AND ?
-         ORDER BY strftime('%m-%d', birthday)`
-      ).all(todayMd, sevenMd) as Record<string, unknown>[]
+        `SELECT m.* FROM members m
+         LEFT JOIN birthday_records br ON m.id = br.member_id AND br.year = ?
+         WHERE m.birthday IS NOT NULL
+           AND strftime('%m-%d', m.birthday) BETWEEN ? AND ?
+           AND br.id IS NULL
+         ORDER BY strftime('%m-%d', m.birthday)`
+      ).all(currentYear, todayMd, sevenMd) as Record<string, unknown>[]
     } else {
       rows = db.prepare(
-        `SELECT * FROM members
-         WHERE birthday IS NOT NULL
-           AND (strftime('%m-%d', birthday) >= ? OR strftime('%m-%d', birthday) <= ?)
-         ORDER BY strftime('%m-%d', birthday)`
-      ).all(todayMd, sevenMd) as Record<string, unknown>[]
+        `SELECT m.* FROM members m
+         LEFT JOIN birthday_records br ON m.id = br.member_id AND br.year = ?
+         WHERE m.birthday IS NOT NULL
+           AND (strftime('%m-%d', m.birthday) >= ? OR strftime('%m-%d', m.birthday) <= ?)
+           AND br.id IS NULL
+         ORDER BY strftime('%m-%d', m.birthday)`
+      ).all(currentYear, todayMd, sevenMd) as Record<string, unknown>[]
     }
 
     res.json({ success: true, data: mapRows(rows) })
+  } catch (err) {
+    res.status(500).json({ success: false, error: (err as Error).message })
+  }
+})
+
+router.post('/:id/birthday-handle', (req: Request, res: Response): void => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    const { note } = req.body
+    const currentYear = new Date().getFullYear()
+
+    const member = db.prepare('SELECT * FROM members WHERE id = ?').get(id)
+    if (!member) {
+      res.status(404).json({ success: false, error: '会员不存在' })
+      return
+    }
+
+    const existing = db.prepare(
+      'SELECT * FROM birthday_records WHERE member_id = ? AND year = ?'
+    ).get(id, currentYear)
+
+    if (existing) {
+      db.prepare(
+        'UPDATE birthday_records SET note = ?, handled_at = CURRENT_TIMESTAMP WHERE member_id = ? AND year = ?'
+      ).run(note || null, id, currentYear)
+    } else {
+      db.prepare(
+        'INSERT INTO birthday_records (member_id, year, note) VALUES (?, ?, ?)'
+      ).run(id, currentYear, note || null)
+    }
+
+    const record = db.prepare(
+      'SELECT * FROM birthday_records WHERE member_id = ? AND year = ?'
+    ).get(id, currentYear) as Record<string, unknown>
+
+    res.json({ success: true, data: mapRow(record) })
   } catch (err) {
     res.status(500).json({ success: false, error: (err as Error).message })
   }
@@ -124,7 +165,7 @@ router.put('/:id', (req: Request, res: Response): void => {
 router.post('/:id/recharge', (req: Request, res: Response): void => {
   try {
     const id = parseInt(req.params.id, 10)
-    const { amount } = req.body
+    const { amount, bonusAmount } = req.body
     if (!amount || amount <= 0) {
       res.status(400).json({ success: false, error: '充值金额必须大于0' })
       return
@@ -135,22 +176,26 @@ router.post('/:id/recharge', (req: Request, res: Response): void => {
       return
     }
 
-    const rule = db.prepare(
-      `SELECT * FROM recharge_rules
-       WHERE recharge_amount <= ?
-       ORDER BY bonus_amount DESC
-       LIMIT 1`
-    ).get(amount) as { bonus_amount: number; recharge_amount: number } | undefined
-
-    const bonus = rule ? rule.bonus_amount : 0
+    let bonus: number
+    if (bonusAmount !== undefined && bonusAmount !== null) {
+      bonus = Number(bonusAmount)
+    } else {
+      const rule = db.prepare(
+        `SELECT * FROM recharge_rules
+         WHERE recharge_amount <= ?
+         ORDER BY bonus_amount DESC
+         LIMIT 1`
+      ).get(amount) as { bonus_amount: number; recharge_amount: number } | undefined
+      bonus = rule ? rule.bonus_amount : 0
+    }
     const total = amount + bonus
 
     const tx = db.transaction(() => {
       db.prepare('UPDATE members SET balance = balance + ? WHERE id = ?').run(total, id)
       const info = db.prepare(
-        `INSERT INTO transactions (member_id, amount, type)
-         VALUES (?, ?, 'recharge')`
-      ).run(id, total)
+        `INSERT INTO transactions (member_id, amount, bonus_amount, type)
+         VALUES (?, ?, ?, 'recharge')`
+      ).run(id, amount, bonus)
       return info.lastInsertRowid
     })
 
@@ -160,7 +205,8 @@ router.post('/:id/recharge', (req: Request, res: Response): void => {
       success: true,
       data: {
         member: mapRow(row),
-        bonus,
+        rechargeAmount: amount,
+        bonusAmount: bonus,
         transactionId: txId,
       },
     })
@@ -212,6 +258,29 @@ router.post('/:id/consume', (req: Request, res: Response): void => {
         transactionId: txId,
       },
     })
+  } catch (err) {
+    res.status(500).json({ success: false, error: (err as Error).message })
+  }
+})
+
+router.post('/:id/birthday-handle', (req: Request, res: Response): void => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    const { note } = req.body
+    const member = db.prepare('SELECT * FROM members WHERE id = ?').get(id)
+    if (!member) {
+      res.status(404).json({ success: false, error: '会员不存在' })
+      return
+    }
+
+    const year = new Date().getFullYear()
+
+    db.prepare(
+      `INSERT OR REPLACE INTO birthday_records (member_id, year, note)
+       VALUES (?, ?, ?)`
+    ).run(id, year, note || null)
+
+    res.json({ success: true, data: null })
   } catch (err) {
     res.status(500).json({ success: false, error: (err as Error).message })
   }

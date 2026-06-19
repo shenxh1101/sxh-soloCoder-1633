@@ -118,7 +118,8 @@ export default function Members() {
 
     try {
       await rechargeMemberStore(selectedMember.id, {
-        amount: amount + bonus,
+        amount,
+        bonusAmount: bonus,
       });
       setIsRechargeModalOpen(false);
     } catch {

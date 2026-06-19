@@ -51,6 +51,7 @@ export interface Transaction {
   technicianId: number;
   serviceId: number;
   amount: number;
+  bonusAmount: number;
   pointsEarned: number;
   type: TransactionType;
   createdAt: string;
@@ -68,7 +69,8 @@ export type BirthdayMember = Member & {
 
 export interface MemberRechargeRecord {
   member: Member;
-  bonus: number;
+  rechargeAmount: number;
+  bonusAmount: number;
   transactionId: number;
 }
 
@@ -95,6 +97,7 @@ export interface ServiceReport {
 export interface RechargeReport {
   rechargeCount: number;
   totalRecharge: number;
+  totalBonus: number;
   rules: RechargeRule[];
 }
 
@@ -107,6 +110,19 @@ export interface CreateMemberRequest {
 
 export interface RechargeMemberRequest {
   amount: number;
+  bonusAmount?: number;
+}
+
+export interface BirthdayRecord {
+  id: number;
+  memberId: number;
+  year: number;
+  handledAt: string;
+  note: string | null;
+}
+
+export interface HandleBirthdayRequest {
+  note?: string;
 }
 
 export interface ConsumeMemberRequest {

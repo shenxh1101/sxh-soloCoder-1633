@@ -58,10 +58,17 @@ const statCards = [
 ];
 
 export default function Dashboard() {
-  const { members, appointments, loadMembers, loadAppointments } = useAppStore();
+  const {
+    members,
+    appointments,
+    loadMembers,
+    loadAppointments,
+    loadBirthdayMembers,
+    handleBirthday,
+  } = useAppStore();
   const [birthdayMembers, setBirthdayMembers] = useState<Member[]>([]);
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
-  const { loadBirthdayMembers } = useAppStore();
+  const [handlingId, setHandlingId] = useState<number | null>(null);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -83,6 +90,18 @@ export default function Dashboard() {
       setBirthdayMembers(data || []);
     } catch {
       setBirthdayMembers([]);
+    }
+  };
+
+  const handleBirthdayProcess = async (memberId: number, note?: string) => {
+    try {
+      setHandlingId(memberId);
+      await handleBirthday(memberId, note);
+      setBirthdayMembers((prev) => prev.filter((m) => m.id !== memberId));
+    } catch {
+      alert("处理失败");
+    } finally {
+      setHandlingId(null);
     }
   };
 
@@ -174,28 +193,54 @@ export default function Dashboard() {
             <div className="space-y-2">
               {birthdayMembers.map((member) => {
                 const daysUntil = member.birthday ? getDaysUntilBirthday(member.birthday) : 999;
+                const isHandling = handlingId === member.id;
                 return (
                   <div
                     key={member.id}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors"
+                    className="p-3 rounded-lg hover:bg-neutral-50 transition-colors"
                   >
-                    <div>
-                      <p className="font-medium text-neutral-800">
-                        {member.name}
-                      </p>
-                      <p className="text-sm text-neutral-500">{member.phone}</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-neutral-800">
+                          {member.name}
+                        </p>
+                        <p className="text-sm text-neutral-500">{member.phone}</p>
+                      </div>
+                      <span
+                        className={`text-sm font-medium px-3 py-1 rounded-full ${
+                          daysUntil <= 2
+                            ? "bg-accent-100 text-accent-700"
+                            : "bg-brand-100 text-brand-700"
+                        }`}
+                      >
+                        {daysUntil === 0
+                          ? "今天生日"
+                          : `${daysUntil}天后`}
+                      </span>
                     </div>
-                    <span
-                      className={`text-sm font-medium px-3 py-1 rounded-full ${
-                        daysUntil <= 2
-                          ? "bg-accent-100 text-accent-700"
-                          : "bg-brand-100 text-brand-700"
-                      }`}
-                    >
-                      {daysUntil === 0
-                        ? "今天生日"
-                        : `${daysUntil}天后`}
-                    </span>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        onClick={() => handleBirthdayProcess(member.id, "已发优惠券")}
+                        disabled={isHandling}
+                        className="flex-1 text-xs px-2 py-1.5 bg-brand-100 text-brand-700 rounded-md hover:bg-brand-200 transition-colors disabled:opacity-50"
+                      >
+                        {isHandling ? "处理中..." : "已发优惠券"}
+                      </button>
+                      <button
+                        onClick={() => handleBirthdayProcess(member.id, "已送礼品")}
+                        disabled={isHandling}
+                        className="flex-1 text-xs px-2 py-1.5 bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors disabled:opacity-50"
+                      >
+                        {isHandling ? "处理中..." : "已送礼品"}
+                      </button>
+                      <button
+                        onClick={() => handleBirthdayProcess(member.id)}
+                        disabled={isHandling}
+                        className="text-xs px-2 py-1.5 bg-neutral-100 text-neutral-600 rounded-md hover:bg-neutral-200 transition-colors disabled:opacity-50"
+                      >
+                        已处理
+                      </button>
+                    </div>
                   </div>
                 );
               })}

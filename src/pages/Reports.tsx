@@ -28,6 +28,7 @@ export default function Reports() {
   const [rechargeReport, setRechargeReport] = useState<RechargeReport>({
     rechargeCount: 0,
     totalRecharge: 0,
+    totalBonus: 0,
     rules: [],
   });
   const [loading, setLoading] = useState(true);
@@ -50,6 +51,7 @@ export default function Reports() {
       setRechargeReport(recharge || {
         rechargeCount: 0,
         totalRecharge: 0,
+        totalBonus: 0,
         rules: [],
       });
     } catch {
