@@ -41,14 +41,18 @@ export default function Reports() {
   const [loading, setLoading] = useState(true);
 
   const [expandedTechId, setExpandedTechId] = useState<number | null>(null);
-  const [techDetails, setTechDetails] = useState<TechnicianDetailReport[]>([]);
+  const [techDetails, setTechDetails] = useState<TechnicianDetailReport | null>(null);
   const [techDetailLoading, setTechDetailLoading] = useState(false);
 
   const [expandedServiceId, setExpandedServiceId] = useState<number | null>(null);
-  const [serviceDetails, setServiceDetails] = useState<ServiceDetailReport[]>([]);
+  const [serviceDetails, setServiceDetails] = useState<ServiceDetailReport | null>(null);
   const [serviceDetailLoading, setServiceDetailLoading] = useState(false);
 
   useEffect(() => {
+    setExpandedTechId(null);
+    setExpandedServiceId(null);
+    setTechDetails(null);
+    setServiceDetails(null);
     fetchReports();
   }, [selectedMonth]);
 
@@ -79,16 +83,16 @@ export default function Reports() {
   const handleToggleTech = async (techId: number) => {
     if (expandedTechId === techId) {
       setExpandedTechId(null);
-      setTechDetails([]);
+      setTechDetails(null);
       return;
     }
     setExpandedTechId(techId);
     setTechDetailLoading(true);
     try {
       const details = await api.getTechnicianDetail(selectedMonth, techId);
-      setTechDetails(details || []);
+      setTechDetails(details);
     } catch {
-      setTechDetails([]);
+      setTechDetails(null);
     } finally {
       setTechDetailLoading(false);
     }
@@ -97,16 +101,16 @@ export default function Reports() {
   const handleToggleService = async (serviceId: number) => {
     if (expandedServiceId === serviceId) {
       setExpandedServiceId(null);
-      setServiceDetails([]);
+      setServiceDetails(null);
       return;
     }
     setExpandedServiceId(serviceId);
     setServiceDetailLoading(true);
     try {
       const details = await api.getServiceDetail(selectedMonth, serviceId);
-      setServiceDetails(details || []);
+      setServiceDetails(details);
     } catch {
-      setServiceDetails([]);
+      setServiceDetails(null);
     } finally {
       setServiceDetailLoading(false);
     }
@@ -256,7 +260,7 @@ export default function Reports() {
                       <div className="ml-7 mr-3 mb-2 bg-neutral-50 rounded-lg p-3">
                         {techDetailLoading ? (
                           <p className="text-sm text-neutral-400 text-center py-2">加载中...</p>
-                        ) : techDetails.length === 0 ? (
+                        ) : !techDetails || techDetails.transactions.length === 0 ? (
                           <p className="text-sm text-neutral-400 text-center py-2">暂无明细</p>
                         ) : (
                           <table className="w-full text-sm">
@@ -269,9 +273,9 @@ export default function Reports() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-100">
-                              {techDetails.map((d) => (
+                              {techDetails.transactions.map((d) => (
                                 <tr key={d.id}>
-                                  <td className="py-1.5 px-2 text-neutral-600">{formatDate(d.date)}</td>
+                                  <td className="py-1.5 px-2 text-neutral-600">{formatDate(d.createdAt)}</td>
                                   <td className="py-1.5 px-2 text-neutral-600">{d.memberName}</td>
                                   <td className="py-1.5 px-2 text-neutral-600">{d.serviceName}</td>
                                   <td className="py-1.5 px-2 text-right font-medium text-brand-600">¥{d.amount.toFixed(2)}</td>
@@ -356,7 +360,7 @@ export default function Reports() {
                       <div className="ml-7 mr-3 mb-2 bg-neutral-50 rounded-lg p-3">
                         {serviceDetailLoading ? (
                           <p className="text-sm text-neutral-400 text-center py-2">加载中...</p>
-                        ) : serviceDetails.length === 0 ? (
+                        ) : !serviceDetails || serviceDetails.transactions.length === 0 ? (
                           <p className="text-sm text-neutral-400 text-center py-2">暂无明细</p>
                         ) : (
                           <table className="w-full text-sm">
@@ -369,9 +373,9 @@ export default function Reports() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-neutral-100">
-                              {serviceDetails.map((d) => (
+                              {serviceDetails.transactions.map((d) => (
                                 <tr key={d.id}>
-                                  <td className="py-1.5 px-2 text-neutral-600">{formatDate(d.date)}</td>
+                                  <td className="py-1.5 px-2 text-neutral-600">{formatDate(d.createdAt)}</td>
                                   <td className="py-1.5 px-2 text-neutral-600">{d.memberName}</td>
                                   <td className="py-1.5 px-2 text-neutral-600">{d.technicianName}</td>
                                   <td className="py-1.5 px-2 text-right font-medium text-brand-600">¥{d.amount.toFixed(2)}</td>

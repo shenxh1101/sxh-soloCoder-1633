@@ -151,50 +151,29 @@ export interface CreateRechargeRuleRequest {
 export interface TransactionDetail {
   id: number;
   amount: number;
-  bonusAmount: number;
-  pointsEarned: number;
-  type: TransactionType;
+  bonusAmount?: number;
+  pointsEarned?: number;
+  type?: TransactionType;
   createdAt: string;
-  technicianName?: string | null;
-  serviceName?: string | null;
   memberName?: string | null;
+  serviceName?: string | null;
+  technicianName?: string | null;
 }
 
 export interface TechnicianDetailReport {
   id: number;
-  date: string;
-  memberName: string;
-  serviceName: string;
-  amount: number;
+  name: string;
+  transactions: TransactionDetail[];
 }
 
 export interface ServiceDetailReport {
   id: number;
-  date: string;
-  memberName: string;
-  technicianName: string;
-  amount: number;
+  name: string;
+  transactions: TransactionDetail[];
 }
 
 export interface CreateServiceRequest {
   name: string;
   price: number;
   duration: number;
-}
-
-export interface TransactionDetail extends Transaction {
-  technicianName?: string;
-  serviceName?: string;
-}
-
-export interface TechnicianDetailReport {
-  id: number;
-  name: string;
-  transactions: TransactionDetail[];
-}
-
-export interface ServiceDetailReport {
-  id: number;
-  name: string;
-  transactions: TransactionDetail[];
 }

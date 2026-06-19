@@ -13,12 +13,21 @@ router.get('/technicians', (req: Request, res: Response): void => {
     const prefix = `${month}-`
     const rows = db.prepare(
       `SELECT t.id, t.name,
-              COUNT(DISTINCT a.id) as appointment_count,
-              COALESCE(SUM(tr.amount), 0) as revenue
+              COALESCE(a.appointment_count, 0) as appointment_count,
+              COALESCE(tr.revenue, 0) as revenue
        FROM technicians t
-       LEFT JOIN appointments a ON t.id = a.technician_id AND a.date LIKE ? AND a.status = 'completed'
-       LEFT JOIN transactions tr ON t.id = tr.technician_id AND tr.created_at LIKE ? AND tr.type = 'consume'
-       GROUP BY t.id, t.name
+       LEFT JOIN (
+         SELECT technician_id, COUNT(*) as appointment_count
+         FROM appointments
+         WHERE date LIKE ? AND status = 'completed'
+         GROUP BY technician_id
+       ) a ON t.id = a.technician_id
+       LEFT JOIN (
+         SELECT technician_id, SUM(amount) as revenue
+         FROM transactions
+         WHERE type = 'consume' AND created_at LIKE ?
+         GROUP BY technician_id
+       ) tr ON t.id = tr.technician_id
        ORDER BY revenue DESC`
     ).all(`${prefix}%`, `${prefix}%`) as Record<string, unknown>[]
     res.json({ success: true, data: mapRows(rows) })
@@ -37,12 +46,21 @@ router.get('/services', (req: Request, res: Response): void => {
     const prefix = `${month}-`
     const rows = db.prepare(
       `SELECT s.id, s.name,
-              COUNT(DISTINCT a.id) as appointment_count,
-              COALESCE(SUM(tr.amount), 0) as revenue
+              COALESCE(a.appointment_count, 0) as appointment_count,
+              COALESCE(tr.revenue, 0) as revenue
        FROM services s
-       LEFT JOIN appointments a ON s.id = a.service_id AND a.date LIKE ? AND a.status = 'completed'
-       LEFT JOIN transactions tr ON s.id = tr.service_id AND tr.created_at LIKE ? AND tr.type = 'consume'
-       GROUP BY s.id, s.name
+       LEFT JOIN (
+         SELECT service_id, COUNT(*) as appointment_count
+         FROM appointments
+         WHERE date LIKE ? AND status = 'completed'
+         GROUP BY service_id
+       ) a ON s.id = a.service_id
+       LEFT JOIN (
+         SELECT service_id, SUM(amount) as revenue
+         FROM transactions
+         WHERE type = 'consume' AND created_at LIKE ?
+         GROUP BY service_id
+       ) tr ON s.id = tr.service_id
        ORDER BY revenue DESC`
     ).all(`${prefix}%`, `${prefix}%`) as Record<string, unknown>[]
     res.json({ success: true, data: mapRows(rows) })

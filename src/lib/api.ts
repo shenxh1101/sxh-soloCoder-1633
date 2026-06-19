@@ -199,10 +199,10 @@ export async function getMemberBirthdayRecords(id: number): Promise<BirthdayReco
   return request<BirthdayRecord[]>(`/members/${id}/birthday-records`);
 }
 
-export async function getTechnicianDetail(month: string, technicianId: number): Promise<TechnicianDetailReport[]> {
-  return request<TechnicianDetailReport[]>(`/reports/technician-detail?month=${month}&technicianId=${technicianId}`);
+export async function getTechnicianDetail(month: string, technicianId: number): Promise<TechnicianDetailReport> {
+  return request<TechnicianDetailReport>(`/reports/technician-detail?month=${month}&technicianId=${technicianId}`);
 }
 
-export async function getServiceDetail(month: string, serviceId: number): Promise<ServiceDetailReport[]> {
-  return request<ServiceDetailReport[]>(`/reports/service-detail?month=${month}&serviceId=${serviceId}`);
+export async function getServiceDetail(month: string, serviceId: number): Promise<ServiceDetailReport> {
+  return request<ServiceDetailReport>(`/reports/service-detail?month=${month}&serviceId=${serviceId}`);
 }

@@ -177,9 +177,8 @@ export default function Appointments() {
   };
 
   const scheduleTechnicians = useMemo(() => {
-    const techIds = new Set(filteredAppointments.map((a) => a.technicianId));
-    return technicians.filter((t) => techIds.has(t.id));
-  }, [filteredAppointments, technicians]);
+    return technicians;
+  }, [technicians]);
 
   const getAppointmentBlock = (appointment: Appointment, techIndex: number) => {
     const service = services.find((s: ServiceItem) => s.id === appointment.serviceId);
@@ -358,79 +357,73 @@ export default function Appointments() {
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden">
-          {filteredAppointments.length === 0 ? (
-            <p className="text-neutral-400 text-sm text-center py-12">
-              该日期暂无预约
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <div className="flex min-w-max">
-                <div className="flex-shrink-0 w-16 border-r border-neutral-200">
-                  <div className="h-12 border-b border-neutral-200 flex items-center justify-center text-xs font-medium text-neutral-500">
-                    时间
-                  </div>
-                  {TIME_SLOTS.map((slot) => (
-                    <div
-                      key={slot}
-                      className="border-b border-neutral-100 flex items-start justify-end pr-2 text-xs text-neutral-500"
-                      style={{ height: `${SLOT_HEIGHT}px` }}
-                    >
-                      <span className="-mt-2">{slot}</span>
-                    </div>
-                  ))}
+          <div className="overflow-x-auto">
+            <div className="flex min-w-max">
+              <div className="flex-shrink-0 w-16 border-r border-neutral-200">
+                <div className="h-12 border-b border-neutral-200 flex items-center justify-center text-xs font-medium text-neutral-500">
+                  时间
                 </div>
-
-                {scheduleTechnicians.map((tech) => {
-                  const techAppointments = filteredAppointments.filter(
-                    (a) => a.technicianId === tech.id
-                  );
-
-                  return (
-                    <div
-                      key={tech.id}
-                      className="flex-1 min-w-[140px] border-r border-neutral-200 last:border-r-0"
-                    >
-                      <div className="h-12 border-b border-neutral-200 flex items-center justify-center text-sm font-medium text-neutral-700">
-                        {tech.name}
-                      </div>
-                      <div className="relative">
-                        {TIME_SLOTS.map((slot) => (
-                          <div
-                            key={slot}
-                            className="border-b border-neutral-100"
-                            style={{ height: `${SLOT_HEIGHT}px` }}
-                          />
-                        ))}
-                        {techAppointments.map((appointment) => {
-                          const block = getAppointmentBlock(appointment, 0);
-                          return (
-                            <div
-                              key={appointment.id}
-                              className={cn(
-                                "absolute left-1 right-1 rounded-md border px-1.5 py-0.5 overflow-hidden cursor-default text-xs",
-                                statusBlockColors[appointment.status]
-                              )}
-                              style={{
-                                top: `${block.topOffset}px`,
-                                height: `${Math.max(block.height - 2, 20)}px`,
-                              }}
-                            >
-                              <div className="font-medium truncate">
-                                {appointment.memberName}
-                              </div>
-                              <div className="truncate opacity-75">
-                                {appointment.serviceName}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
+                {TIME_SLOTS.map((slot) => (
+                  <div
+                    key={slot}
+                    className="border-b border-neutral-100 flex items-start justify-end pr-2 text-xs text-neutral-500"
+                    style={{ height: `${SLOT_HEIGHT}px` }}
+                  >
+                    <span className="-mt-2">{slot}</span>
+                  </div>
+                ))}
               </div>
+
+              {scheduleTechnicians.map((tech) => {
+                const techAppointments = filteredAppointments.filter(
+                  (a) => a.technicianId === tech.id
+                );
+
+                return (
+                  <div
+                    key={tech.id}
+                    className="flex-1 min-w-[140px] border-r border-neutral-200 last:border-r-0"
+                  >
+                    <div className="h-12 border-b border-neutral-200 flex items-center justify-center text-sm font-medium text-neutral-700">
+                      {tech.name}
+                    </div>
+                    <div className="relative">
+                      {TIME_SLOTS.map((slot) => (
+                        <div
+                          key={slot}
+                          className="border-b border-neutral-100"
+                          style={{ height: `${SLOT_HEIGHT}px` }}
+                        />
+                      ))}
+                      {techAppointments.map((appointment) => {
+                        const block = getAppointmentBlock(appointment, 0);
+                        return (
+                          <div
+                            key={appointment.id}
+                            className={cn(
+                              "absolute left-1 right-1 rounded-md border px-1.5 py-0.5 overflow-hidden cursor-default text-xs",
+                              statusBlockColors[appointment.status]
+                            )}
+                            style={{
+                              top: `${block.topOffset}px`,
+                              height: `${Math.max(block.height - 2, 20)}px`,
+                            }}
+                          >
+                            <div className="font-medium truncate">
+                              {appointment.memberName}
+                            </div>
+                            <div className="truncate opacity-75">
+                              {appointment.serviceName}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
+          </div>
         </div>
       )}
 
