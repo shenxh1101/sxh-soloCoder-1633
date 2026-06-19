@@ -97,6 +97,49 @@ router.get('/:id', (req: Request, res: Response): void => {
   }
 })
 
+router.get('/:id/transactions', (req: Request, res: Response): void => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    const member = db.prepare('SELECT * FROM members WHERE id = ?').get(id)
+    if (!member) {
+      res.status(404).json({ success: false, error: '会员不存在' })
+      return
+    }
+    const rows = db.prepare(
+      `SELECT t.id, t.amount, t.bonus_amount, t.points_earned, t.type, t.created_at,
+              tech.name as technician_name, s.name as service_name
+       FROM transactions t
+       LEFT JOIN technicians tech ON t.technician_id = tech.id
+       LEFT JOIN services s ON t.service_id = s.id
+       WHERE t.member_id = ?
+       ORDER BY t.created_at DESC`
+    ).all(id) as Record<string, unknown>[]
+    res.json({ success: true, data: mapRows(rows) })
+  } catch (err) {
+    res.status(500).json({ success: false, error: (err as Error).message })
+  }
+})
+
+router.get('/:id/birthday-records', (req: Request, res: Response): void => {
+  try {
+    const id = parseInt(req.params.id, 10)
+    const member = db.prepare('SELECT * FROM members WHERE id = ?').get(id)
+    if (!member) {
+      res.status(404).json({ success: false, error: '会员不存在' })
+      return
+    }
+    const rows = db.prepare(
+      `SELECT id, member_id, year, handled_at, note
+       FROM birthday_records
+       WHERE member_id = ?
+       ORDER BY year DESC`
+    ).all(id) as Record<string, unknown>[]
+    res.json({ success: true, data: mapRows(rows) })
+  } catch (err) {
+    res.status(500).json({ success: false, error: (err as Error).message })
+  }
+})
+
 router.post('/', (req: Request, res: Response): void => {
   try {
     const { name, phone, birthday, hairPreference } = req.body
@@ -235,6 +278,10 @@ router.post('/:id/consume', (req: Request, res: Response): void => {
 
     const pointsEarned = Math.floor(amount)
 
+    const now = new Date()
+    const today = now.toISOString().slice(0, 10)
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
     const tx = db.transaction(() => {
       db.prepare('UPDATE members SET balance = balance - ?, points = points + ? WHERE id = ?').run(
         amount,
@@ -245,6 +292,14 @@ router.post('/:id/consume', (req: Request, res: Response): void => {
         `INSERT INTO transactions (member_id, technician_id, service_id, amount, points_earned, type)
          VALUES (?, ?, ?, ?, ?, 'consume')`
       ).run(id, technicianId || null, serviceId || null, amount, pointsEarned)
+
+      if (technicianId && serviceId) {
+        db.prepare(
+          `INSERT INTO appointments (member_id, technician_id, service_id, date, time, status)
+           VALUES (?, ?, ?, ?, ?, 'completed')`
+        ).run(id, technicianId, serviceId, today, currentTime)
+      }
+
       return info.lastInsertRowid
     })
 

@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express'
-import db, { mapRows } from '../db.js'
+import db, { mapRow, mapRows } from '../db.js'
 
 const router = Router()
 
@@ -74,6 +74,78 @@ router.get('/recharge', (req: Request, res: Response): void => {
       data: {
         ...(mapRows([row])[0] as Record<string, unknown>),
         rules: mapRows(rules),
+      },
+    })
+  } catch (err) {
+    res.status(500).json({ success: false, error: (err as Error).message })
+  }
+})
+
+router.get('/technician-detail', (req: Request, res: Response): void => {
+  try {
+    const { month, technicianId } = req.query
+    if (!month || !technicianId) {
+      res.status(400).json({ success: false, error: '缺少 month 和 technicianId 参数' })
+      return
+    }
+    const tech = db.prepare('SELECT * FROM technicians WHERE id = ?').get(Number(technicianId)) as Record<string, unknown> | undefined
+    if (!tech) {
+      res.status(404).json({ success: false, error: '技师不存在' })
+      return
+    }
+    const prefix = `${month}-`
+    const transactions = db.prepare(
+      `SELECT tr.id, tr.amount, tr.created_at,
+              m.name as member_name, s.name as service_name
+       FROM transactions tr
+       LEFT JOIN members m ON tr.member_id = m.id
+       LEFT JOIN services s ON tr.service_id = s.id
+       WHERE tr.technician_id = ? AND tr.type = 'consume' AND tr.created_at LIKE ?
+       ORDER BY tr.created_at DESC`
+    ).all(Number(technicianId), `${prefix}%`) as Record<string, unknown>[]
+    const techData = mapRow(tech) as Record<string, unknown>
+    res.json({
+      success: true,
+      data: {
+        id: techData.id,
+        name: techData.name,
+        transactions: mapRows(transactions),
+      },
+    })
+  } catch (err) {
+    res.status(500).json({ success: false, error: (err as Error).message })
+  }
+})
+
+router.get('/service-detail', (req: Request, res: Response): void => {
+  try {
+    const { month, serviceId } = req.query
+    if (!month || !serviceId) {
+      res.status(400).json({ success: false, error: '缺少 month 和 serviceId 参数' })
+      return
+    }
+    const svc = db.prepare('SELECT * FROM services WHERE id = ?').get(Number(serviceId)) as Record<string, unknown> | undefined
+    if (!svc) {
+      res.status(404).json({ success: false, error: '服务项目不存在' })
+      return
+    }
+    const prefix = `${month}-`
+    const transactions = db.prepare(
+      `SELECT tr.id, tr.amount, tr.created_at,
+              m.name as member_name, tech.name as technician_name
+       FROM transactions tr
+       LEFT JOIN members m ON tr.member_id = m.id
+       LEFT JOIN technicians tech ON tr.technician_id = tech.id
+       WHERE tr.service_id = ? AND tr.type = 'consume' AND tr.created_at LIKE ?
+       ORDER BY tr.created_at DESC`
+    ).all(Number(serviceId), `${prefix}%`) as Record<string, unknown>[]
+    const svcData = mapRow(svc) as Record<string, unknown>
+    res.json({
+      success: true,
+      data: {
+        id: svcData.id,
+        name: svcData.name,
+        transactions: mapRows(transactions),
       },
     })
   } catch (err) {

@@ -12,9 +12,16 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import { Wallet, Users, TrendingUp, Calendar } from "lucide-react";
+import { Wallet, Users, TrendingUp, Calendar, ChevronDown, ChevronUp } from "lucide-react";
 import * as api from "@/lib/api";
-import type { TechnicianReport, ServiceReport, RechargeReport } from "../../shared/types";
+import type {
+  TechnicianReport,
+  ServiceReport,
+  RechargeReport,
+  TechnicianDetailReport,
+  ServiceDetailReport,
+} from "../../shared/types";
+import { cn } from "@/lib/utils";
 
 const COLORS = ["#7C2D12", "#D97706", "#059669", "#2563EB", "#7C3AED", "#DC2626"];
 
@@ -33,7 +40,14 @@ export default function Reports() {
   });
   const [loading, setLoading] = useState(true);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const [expandedTechId, setExpandedTechId] = useState<number | null>(null);
+  const [techDetails, setTechDetails] = useState<TechnicianDetailReport[]>([]);
+  const [techDetailLoading, setTechDetailLoading] = useState(false);
+
+  const [expandedServiceId, setExpandedServiceId] = useState<number | null>(null);
+  const [serviceDetails, setServiceDetails] = useState<ServiceDetailReport[]>([]);
+  const [serviceDetailLoading, setServiceDetailLoading] = useState(false);
+
   useEffect(() => {
     fetchReports();
   }, [selectedMonth]);
@@ -59,6 +73,42 @@ export default function Reports() {
       setServiceReports([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleTech = async (techId: number) => {
+    if (expandedTechId === techId) {
+      setExpandedTechId(null);
+      setTechDetails([]);
+      return;
+    }
+    setExpandedTechId(techId);
+    setTechDetailLoading(true);
+    try {
+      const details = await api.getTechnicianDetail(selectedMonth, techId);
+      setTechDetails(details || []);
+    } catch {
+      setTechDetails([]);
+    } finally {
+      setTechDetailLoading(false);
+    }
+  };
+
+  const handleToggleService = async (serviceId: number) => {
+    if (expandedServiceId === serviceId) {
+      setExpandedServiceId(null);
+      setServiceDetails([]);
+      return;
+    }
+    setExpandedServiceId(serviceId);
+    setServiceDetailLoading(true);
+    try {
+      const details = await api.getServiceDetail(selectedMonth, serviceId);
+      setServiceDetails(details || []);
+    } catch {
+      setServiceDetails([]);
+    } finally {
+      setServiceDetailLoading(false);
     }
   };
 
@@ -97,6 +147,11 @@ export default function Reports() {
       color: "bg-green-100 text-green-700",
     },
   ];
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("zh-CN", { month: "2-digit", day: "2-digit" });
+  };
 
   return (
     <div className="space-y-6">
@@ -169,6 +224,69 @@ export default function Reports() {
               </ResponsiveContainer>
             </div>
           )}
+
+          {techReports.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-sm font-medium text-neutral-600 mb-2">技师明细</h4>
+              <div className="space-y-1">
+                {techReports.map((tech) => (
+                  <div key={tech.id}>
+                    <button
+                      onClick={() => handleToggleTech(tech.id)}
+                      className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        {expandedTechId === tech.id ? (
+                          <ChevronUp className="w-4 h-4 text-neutral-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-neutral-400" />
+                        )}
+                        <span className="font-medium text-neutral-800">{tech.name}</span>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="text-neutral-600">
+                          服务 <span className="font-semibold text-accent-700">{tech.appointmentCount}</span> 次
+                        </span>
+                        <span className="text-neutral-600">
+                          营收 <span className="font-semibold text-brand-600">¥{tech.revenue.toFixed(2)}</span>
+                        </span>
+                      </div>
+                    </button>
+                    {expandedTechId === tech.id && (
+                      <div className="ml-7 mr-3 mb-2 bg-neutral-50 rounded-lg p-3">
+                        {techDetailLoading ? (
+                          <p className="text-sm text-neutral-400 text-center py-2">加载中...</p>
+                        ) : techDetails.length === 0 ? (
+                          <p className="text-sm text-neutral-400 text-center py-2">暂无明细</p>
+                        ) : (
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-neutral-200">
+                                <th className="text-left py-1.5 px-2 font-medium text-neutral-500">日期</th>
+                                <th className="text-left py-1.5 px-2 font-medium text-neutral-500">客户</th>
+                                <th className="text-left py-1.5 px-2 font-medium text-neutral-500">服务项目</th>
+                                <th className="text-right py-1.5 px-2 font-medium text-neutral-500">金额</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-100">
+                              {techDetails.map((d) => (
+                                <tr key={d.id}>
+                                  <td className="py-1.5 px-2 text-neutral-600">{formatDate(d.date)}</td>
+                                  <td className="py-1.5 px-2 text-neutral-600">{d.memberName}</td>
+                                  <td className="py-1.5 px-2 text-neutral-600">{d.serviceName}</td>
+                                  <td className="py-1.5 px-2 text-right font-medium text-brand-600">¥{d.amount.toFixed(2)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-5">
@@ -204,6 +322,69 @@ export default function Reports() {
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
+            </div>
+          )}
+
+          {serviceReports.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-sm font-medium text-neutral-600 mb-2">项目明细</h4>
+              <div className="space-y-1">
+                {serviceReports.map((svc) => (
+                  <div key={svc.id}>
+                    <button
+                      onClick={() => handleToggleService(svc.id)}
+                      className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-neutral-50 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        {expandedServiceId === svc.id ? (
+                          <ChevronUp className="w-4 h-4 text-neutral-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-neutral-400" />
+                        )}
+                        <span className="font-medium text-neutral-800">{svc.name}</span>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="text-neutral-600">
+                          次数 <span className="font-semibold text-accent-700">{svc.appointmentCount}</span>
+                        </span>
+                        <span className="text-neutral-600">
+                          营收 <span className="font-semibold text-brand-600">¥{svc.revenue.toFixed(2)}</span>
+                        </span>
+                      </div>
+                    </button>
+                    {expandedServiceId === svc.id && (
+                      <div className="ml-7 mr-3 mb-2 bg-neutral-50 rounded-lg p-3">
+                        {serviceDetailLoading ? (
+                          <p className="text-sm text-neutral-400 text-center py-2">加载中...</p>
+                        ) : serviceDetails.length === 0 ? (
+                          <p className="text-sm text-neutral-400 text-center py-2">暂无明细</p>
+                        ) : (
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-neutral-200">
+                                <th className="text-left py-1.5 px-2 font-medium text-neutral-500">日期</th>
+                                <th className="text-left py-1.5 px-2 font-medium text-neutral-500">客户</th>
+                                <th className="text-left py-1.5 px-2 font-medium text-neutral-500">技师</th>
+                                <th className="text-right py-1.5 px-2 font-medium text-neutral-500">金额</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-100">
+                              {serviceDetails.map((d) => (
+                                <tr key={d.id}>
+                                  <td className="py-1.5 px-2 text-neutral-600">{formatDate(d.date)}</td>
+                                  <td className="py-1.5 px-2 text-neutral-600">{d.memberName}</td>
+                                  <td className="py-1.5 px-2 text-neutral-600">{d.technicianName}</td>
+                                  <td className="py-1.5 px-2 text-right font-medium text-brand-600">¥{d.amount.toFixed(2)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

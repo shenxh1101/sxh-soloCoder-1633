@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, Fragment } from "react";
 import {
   Plus,
   Search,
@@ -9,13 +9,17 @@ import {
   X,
   AlertTriangle,
   Gift,
+  Cake,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
+import * as api from "@/lib/api";
 import type {
   Member,
   RechargeRule,
   ServiceItem,
   Technician,
+  TransactionDetail,
+  BirthdayRecord,
 } from "../../shared/types";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +40,9 @@ export default function Members() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [transactions, setTransactions] = useState<TransactionDetail[]>([]);
+  const [birthdayRecords, setBirthdayRecords] = useState<BirthdayRecord[]>([]);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
   const [isConsumeModalOpen, setIsConsumeModalOpen] = useState(false);
@@ -59,13 +66,40 @@ export default function Members() {
     technicianId: 0,
   });
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadMembers();
     loadServices();
     loadTechnicians();
     loadRechargeRules();
+  }, [loadMembers, loadServices, loadTechnicians, loadRechargeRules]);
+
+  const loadMemberDetail = useCallback(async (memberId: number) => {
+    setDetailLoading(true);
+    try {
+      const [txns, bdays] = await Promise.all([
+        api.getMemberTransactions(memberId),
+        api.getMemberBirthdayRecords(memberId),
+      ]);
+      setTransactions(txns || []);
+      setBirthdayRecords(bdays || []);
+    } catch {
+      setTransactions([]);
+      setBirthdayRecords([]);
+    } finally {
+      setDetailLoading(false);
+    }
   }, []);
+
+  const handleToggleExpand = (memberId: number) => {
+    if (expandedId === memberId) {
+      setExpandedId(null);
+      setTransactions([]);
+      setBirthdayRecords([]);
+    } else {
+      setExpandedId(memberId);
+      loadMemberDetail(memberId);
+    }
+  };
 
   const filteredMembers = members.filter(
     (m: Member) =>
@@ -147,7 +181,12 @@ export default function Members() {
   const selectedService = services.find(
     (s: ServiceItem) => s.id === consumeData.serviceId
   );
-  const estimatedPoints = selectedService ? Math.floor(selectedService.price / 10) : 0;
+  const estimatedPoints = selectedService ? Math.floor(selectedService.price) : 0;
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" });
+  };
 
   return (
     <div className="space-y-6">
@@ -215,18 +254,13 @@ export default function Members() {
                 </tr>
               ) : (
                 filteredMembers.map((member: Member, idx: number) => (
-                  <>
+                  <Fragment key={member.id}>
                     <tr
-                      key={member.id}
                       className={cn(
                         "hover:bg-neutral-50 transition-colors cursor-pointer",
                         idx % 2 === 1 ? "bg-neutral-50/50" : ""
                       )}
-                      onClick={() =>
-                        setExpandedId(
-                          expandedId === member.id ? null : member.id
-                        )
-                      }
+                      onClick={() => handleToggleExpand(member.id)}
                     >
                       <td className="px-4 py-3">
                         {expandedId === member.id ? (
@@ -302,31 +336,112 @@ export default function Members() {
                     </tr>
                     {expandedId === member.id && (
                       <tr className="bg-neutral-50">
-                        <td colSpan={9} className="px-4 py-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                              <h4 className="font-semibold text-neutral-700 mb-3 flex items-center gap-2">
-                                <Wallet className="w-4 h-4 text-brand-500" />
-                                充值记录
-                              </h4>
-                              <p className="text-sm text-neutral-400">
-                                暂无数据
-                              </p>
+                        <td colSpan={9} className="px-6 py-4">
+                          {detailLoading ? (
+                            <p className="text-sm text-neutral-400 text-center py-4">加载中...</p>
+                          ) : (
+                            <div className="space-y-6">
+                              <div>
+                                <h4 className="font-semibold text-neutral-700 mb-3 flex items-center gap-2">
+                                  <Wallet className="w-4 h-4 text-brand-500" />
+                                  交易明细
+                                </h4>
+                                {transactions.length === 0 ? (
+                                  <p className="text-sm text-neutral-400">暂无交易记录</p>
+                                ) : (
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="border-b border-neutral-200">
+                                          <th className="text-left py-2 px-3 font-medium text-neutral-500">日期</th>
+                                          <th className="text-left py-2 px-3 font-medium text-neutral-500">类型</th>
+                                          <th className="text-right py-2 px-3 font-medium text-neutral-500">金额</th>
+                                          <th className="text-right py-2 px-3 font-medium text-neutral-500">赠送</th>
+                                          <th className="text-left py-2 px-3 font-medium text-neutral-500">服务项目</th>
+                                          <th className="text-left py-2 px-3 font-medium text-neutral-500">技师</th>
+                                          <th className="text-right py-2 px-3 font-medium text-neutral-500">积分变化</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-neutral-100">
+                                        {transactions.map((tx) => (
+                                          <tr key={tx.id}>
+                                            <td className="py-2 px-3 text-neutral-600">{formatDate(tx.createdAt)}</td>
+                                            <td className="py-2 px-3">
+                                              <span
+                                                className={cn(
+                                                  "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
+                                                  tx.type === "recharge"
+                                                    ? "bg-green-100 text-green-700"
+                                                    : "bg-red-100 text-red-700"
+                                                )}
+                                              >
+                                                {tx.type === "recharge" ? "充值" : "消费"}
+                                              </span>
+                                            </td>
+                                            <td className={cn(
+                                              "py-2 px-3 text-right font-medium",
+                                              tx.type === "recharge" ? "text-green-600" : "text-red-600"
+                                            )}>
+                                              {tx.type === "recharge" ? "+" : "-"}¥{tx.amount.toFixed(2)}
+                                            </td>
+                                            <td className="py-2 px-3 text-right text-green-600">
+                                              {tx.type === "recharge" && tx.bonusAmount > 0
+                                                ? `+¥${tx.bonusAmount.toFixed(2)}`
+                                                : "-"}
+                                            </td>
+                                            <td className="py-2 px-3 text-neutral-600">
+                                              {tx.type === "consume" ? (tx.serviceName || "-") : "-"}
+                                            </td>
+                                            <td className="py-2 px-3 text-neutral-600">
+                                              {tx.type === "consume" ? (tx.technicianName || "-") : "-"}
+                                            </td>
+                                            <td className="py-2 px-3 text-right text-brand-600">
+                                              +{tx.pointsEarned}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div>
+                                <h4 className="font-semibold text-neutral-700 mb-3 flex items-center gap-2">
+                                  <Cake className="w-4 h-4 text-accent-700" />
+                                  生日处理记录
+                                </h4>
+                                {birthdayRecords.length === 0 ? (
+                                  <p className="text-sm text-neutral-400">暂无生日处理记录</p>
+                                ) : (
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="border-b border-neutral-200">
+                                          <th className="text-left py-2 px-3 font-medium text-neutral-500">年份</th>
+                                          <th className="text-left py-2 px-3 font-medium text-neutral-500">处理日期</th>
+                                          <th className="text-left py-2 px-3 font-medium text-neutral-500">备注</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-neutral-100">
+                                        {birthdayRecords.map((br) => (
+                                          <tr key={br.id}>
+                                            <td className="py-2 px-3 text-neutral-600">{br.year}</td>
+                                            <td className="py-2 px-3 text-neutral-600">{formatDate(br.handledAt)}</td>
+                                            <td className="py-2 px-3 text-neutral-600">{br.note || "-"}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div>
-                              <h4 className="font-semibold text-neutral-700 mb-3 flex items-center gap-2">
-                                <CreditCard className="w-4 h-4 text-accent-700" />
-                                消费记录
-                              </h4>
-                              <p className="text-sm text-neutral-400">
-                                暂无数据
-                              </p>
-                            </div>
-                          </div>
+                          )}
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))
               )}
             </tbody>

@@ -7,6 +7,10 @@ import type {
   TechnicianReport,
   ServiceReport,
   RechargeReport,
+  TransactionDetail,
+  BirthdayRecord,
+  TechnicianDetailReport,
+  ServiceDetailReport,
   CreateMemberRequest,
   RechargeMemberRequest,
   ConsumeMemberRequest,
@@ -185,4 +189,20 @@ export async function getServiceReports(month: string): Promise<ServiceReport[]>
 
 export async function getRechargeReports(month: string): Promise<RechargeReport> {
   return request<RechargeReport>(`/reports/recharge?month=${month}`);
+}
+
+export async function getMemberTransactions(id: number): Promise<TransactionDetail[]> {
+  return request<TransactionDetail[]>(`/members/${id}/transactions`);
+}
+
+export async function getMemberBirthdayRecords(id: number): Promise<BirthdayRecord[]> {
+  return request<BirthdayRecord[]>(`/members/${id}/birthday-records`);
+}
+
+export async function getTechnicianDetail(month: string, technicianId: number): Promise<TechnicianDetailReport[]> {
+  return request<TechnicianDetailReport[]>(`/reports/technician-detail?month=${month}&technicianId=${technicianId}`);
+}
+
+export async function getServiceDetail(month: string, serviceId: number): Promise<ServiceDetailReport[]> {
+  return request<ServiceDetailReport[]>(`/reports/service-detail?month=${month}&serviceId=${serviceId}`);
 }

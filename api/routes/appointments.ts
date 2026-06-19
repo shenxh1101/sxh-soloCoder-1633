@@ -40,6 +40,37 @@ router.post('/', (req: Request, res: Response): void => {
       res.status(400).json({ success: false, error: '技师、服务、日期、时间必填' })
       return
     }
+
+    const service = db.prepare('SELECT * FROM services WHERE id = ?').get(serviceId) as { duration: number } | undefined
+    if (!service) {
+      res.status(400).json({ success: false, error: '服务项目不存在' })
+      return
+    }
+
+    function timeToMinutes(t: string): number {
+      const [h, m] = t.split(':').map(Number)
+      return h * 60 + m
+    }
+
+    const newStart = timeToMinutes(time)
+    const newEnd = newStart + service.duration
+
+    const existingAppts = db.prepare(
+      `SELECT a.time, s.duration
+       FROM appointments a
+       JOIN services s ON a.service_id = s.id
+       WHERE a.technician_id = ? AND a.date = ? AND a.status IN ('pending', 'completed')`
+    ).all(technicianId, date) as { time: string; duration: number }[]
+
+    for (const appt of existingAppts) {
+      const existStart = timeToMinutes(appt.time)
+      const existEnd = existStart + appt.duration
+      if (newStart < existEnd && newEnd > existStart) {
+        res.status(409).json({ success: false, error: '该时段与已有预约冲突' })
+        return
+      }
+    }
+
     const info = db.prepare(
       `INSERT INTO appointments (member_id, technician_id, service_id, date, time)
        VALUES (?, ?, ?, ?, ?)`
