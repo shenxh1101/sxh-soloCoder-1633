@@ -156,6 +156,10 @@ export default function Members() {
         bonusAmount: bonus,
       });
       setIsRechargeModalOpen(false);
+      await loadMembers();
+      if (expandedId === selectedMember.id) {
+        loadMemberDetail(selectedMember.id);
+      }
     } catch {
       alert("充值失败");
     }
@@ -173,6 +177,10 @@ export default function Members() {
         technicianId: consumeData.technicianId,
       });
       setIsConsumeModalOpen(false);
+      await loadMembers();
+      if (expandedId === selectedMember.id) {
+        loadMemberDetail(selectedMember.id);
+      }
     } catch {
       alert("消费失败");
     }

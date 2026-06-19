@@ -172,6 +172,11 @@ export interface ServiceDetailReport {
   transactions: TransactionDetail[];
 }
 
+export interface DashboardSummary {
+  monthlyRevenue: number;
+  monthlyRecharge: number;
+}
+
 export interface CreateServiceRequest {
   name: string;
   price: number;

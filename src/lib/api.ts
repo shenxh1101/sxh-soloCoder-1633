@@ -11,6 +11,7 @@ import type {
   BirthdayRecord,
   TechnicianDetailReport,
   ServiceDetailReport,
+  DashboardSummary,
   CreateMemberRequest,
   RechargeMemberRequest,
   ConsumeMemberRequest,
@@ -205,4 +206,9 @@ export async function getTechnicianDetail(month: string, technicianId: number): 
 
 export async function getServiceDetail(month: string, serviceId: number): Promise<ServiceDetailReport> {
   return request<ServiceDetailReport>(`/reports/service-detail?month=${month}&serviceId=${serviceId}`);
+}
+
+export async function getDashboardSummary(month?: string): Promise<DashboardSummary> {
+  const query = month ? `?month=${month}` : "";
+  return request<DashboardSummary>(`/reports/dashboard-summary${query}`);
 }

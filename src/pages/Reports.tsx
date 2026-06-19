@@ -87,6 +87,7 @@ export default function Reports() {
       return;
     }
     setExpandedTechId(techId);
+    setTechDetails(null);
     setTechDetailLoading(true);
     try {
       const details = await api.getTechnicianDetail(selectedMonth, techId);
@@ -105,6 +106,7 @@ export default function Reports() {
       return;
     }
     setExpandedServiceId(serviceId);
+    setServiceDetails(null);
     setServiceDetailLoading(true);
     try {
       const details = await api.getServiceDetail(selectedMonth, serviceId);
@@ -269,6 +271,7 @@ export default function Reports() {
                                 <th className="text-left py-1.5 px-2 font-medium text-neutral-500">日期</th>
                                 <th className="text-left py-1.5 px-2 font-medium text-neutral-500">客户</th>
                                 <th className="text-left py-1.5 px-2 font-medium text-neutral-500">服务项目</th>
+                                <th className="text-left py-1.5 px-2 font-medium text-neutral-500">技师</th>
                                 <th className="text-right py-1.5 px-2 font-medium text-neutral-500">金额</th>
                               </tr>
                             </thead>
@@ -278,6 +281,7 @@ export default function Reports() {
                                   <td className="py-1.5 px-2 text-neutral-600">{formatDate(d.createdAt)}</td>
                                   <td className="py-1.5 px-2 text-neutral-600">{d.memberName}</td>
                                   <td className="py-1.5 px-2 text-neutral-600">{d.serviceName}</td>
+                                  <td className="py-1.5 px-2 text-neutral-600">{d.technicianName || techDetails.name}</td>
                                   <td className="py-1.5 px-2 text-right font-medium text-brand-600">¥{d.amount.toFixed(2)}</td>
                                 </tr>
                               ))}
@@ -368,6 +372,7 @@ export default function Reports() {
                               <tr className="border-b border-neutral-200">
                                 <th className="text-left py-1.5 px-2 font-medium text-neutral-500">日期</th>
                                 <th className="text-left py-1.5 px-2 font-medium text-neutral-500">客户</th>
+                                <th className="text-left py-1.5 px-2 font-medium text-neutral-500">项目</th>
                                 <th className="text-left py-1.5 px-2 font-medium text-neutral-500">技师</th>
                                 <th className="text-right py-1.5 px-2 font-medium text-neutral-500">金额</th>
                               </tr>
@@ -377,6 +382,7 @@ export default function Reports() {
                                 <tr key={d.id}>
                                   <td className="py-1.5 px-2 text-neutral-600">{formatDate(d.createdAt)}</td>
                                   <td className="py-1.5 px-2 text-neutral-600">{d.memberName}</td>
+                                  <td className="py-1.5 px-2 text-neutral-600">{d.serviceName || serviceDetails.name}</td>
                                   <td className="py-1.5 px-2 text-neutral-600">{d.technicianName}</td>
                                   <td className="py-1.5 px-2 text-right font-medium text-brand-600">¥{d.amount.toFixed(2)}</td>
                                 </tr>

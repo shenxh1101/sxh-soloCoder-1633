@@ -11,6 +11,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
+import * as api from "@/lib/api";
 import type { Appointment, Member } from "../../shared/types";
 
 function getDaysUntilBirthday(birthday: string): number {
@@ -69,13 +70,27 @@ export default function Dashboard() {
   const [birthdayMembers, setBirthdayMembers] = useState<Member[]>([]);
   const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
   const [handlingId, setHandlingId] = useState<number | null>(null);
+  const [monthlyRevenue, setMonthlyRevenue] = useState(0);
+  const [monthlyRecharge, setMonthlyRecharge] = useState(0);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadMembers();
     loadAppointments();
     fetchBirthdayMembers();
+    fetchDashboardSummary();
   }, []);
+
+  const fetchDashboardSummary = async () => {
+    try {
+      const data = await api.getDashboardSummary();
+      setMonthlyRevenue(data.monthlyRevenue || 0);
+      setMonthlyRecharge(data.monthlyRecharge || 0);
+    } catch {
+      setMonthlyRevenue(0);
+      setMonthlyRecharge(0);
+    }
+  };
 
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0];
@@ -107,9 +122,9 @@ export default function Dashboard() {
 
   const stats = {
     todayAppointments: todayAppointments.length,
-    monthlyRevenue: 0,
+    monthlyRevenue: monthlyRevenue.toFixed(2),
     totalMembers: members.length,
-    monthlyRecharge: 0,
+    monthlyRecharge: monthlyRecharge.toFixed(2),
   };
 
   return (
